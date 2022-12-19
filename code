@@ -1,0 +1,619 @@
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+LARC: Updated for R&R
+Author: Polina Krass krassp@email.chop.edu
+Last updated: 12/9/22
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+clear
+use "LARC project data_cleaned.dta"
+
+*drop pilot surveys
+drop if record_id==1
+drop if record_id==2
+drop if record_id==3
+
+*drop variables with 100% missing
+missings dropvars, force
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Demographic Variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+*collapse gender
+gen gender=.
+replace gender=1 if (gender___1==1)
+replace gender=2 if (gender___0==1)
+label define genderlabel 1 "Female" 2 "Male" 
+label values gender genderlabel
+
+table gender, c(sum gender___1 sum gender___0 sum gender___3 sum gender___2)
+tab gender, miss
+drop gender___*
+
+*collapse career_plan - ***UPDATED 12/12 to separate Don't Know and Other
+labellist specialty
+gen career_collapsed=0
+	replace career_collapsed=1 if specialty==6
+	replace career_collapsed=2 if specialty==1
+	replace career_collapsed=3 if specialty==7
+	replace career_collapsed=4 if specialty==8
+	replace career_collapsed=. if specialty==.
+label define careerlabel 1 "Adolescent Medicine" 2 "Primary Care" 0 "Specialty, Hospitalist" 3 "Other" 4 "Don't Know'"
+label values career_collapsed careerlabel		
+tab specialty career_collapsed,miss
+
+*generate primary care/adol med binary 
+recode career_collapsed (2=1), gen(career_binary)
+tab career_binary career_collapsed
+label define careerlabel2 1 "Adolescent Medicine or Primary Care" 0 "Specialty, Hospitalist" 3 "Other" 4 "Don't Know"
+label values career_binary careerlabel2
+tab specialty,miss
+tab career_binary career_collapsed
+
+*recode traininglevel
+gen traininglevel=pgy
+	replace traininglevel=3 if pgy>2
+	replace traininglevel=. if pgy==.
+label define programtraininglevel 1 "PGY-1" 2 "PGY-2" 3 "PGY-3 or above"
+label values traininglevel programtraininglevel	
+tab traininglevel, miss	
+tab pgy, miss
+
+***collapse race
+recode race (3/6=6 "Other"), gen(racecoll)
+tab2 race racecoll, miss
+
+*convert "do you expect contraceptive counseling to be part of your practice" into binary
+labellist contraception_afterres
+gen counseling=.
+	replace counseling=1 if contraception_afterres==1
+	replace counseling=0 if contraception_afterres==0
+	replace counseling=0 if contraception_afterres==2
+label define yesnonotsure 1 "yes" 0 "no or not sure"
+label values counseling yesnonotsure
+
+tab contraception_afterres, miss
+tab counseling,miss
+
+*convert adolescent med rotation complete into binary 
+gen adolmedcomplete=.
+	replace adolmedcomplete=1 if nonchop_doneadolmed==1
+	replace adolmedcomplete=1 if adolinpt==1
+	replace adolmedcomplete=1 if adoloutpt==1
+	replace adolmedcomplete=0 if adolinpt+adoloutpt==0 
+	replace adolmedcomplete=0 if nonchop_doneadolmed==0
+tab adolinpt adoloutpt, miss
+tab nonchop_doneadolmed, miss
+tab adolmedcomplete, miss
+	
+*collape program name
+foreach var of varlist program* {
+    decode `var', gen(str_`var')
+    }
+egen program_collate = concat(str_program*)
+	
+***convert states into region 
+generate census_region=.
+	***census tract 1
+	replace census_region=1 if (residency_state==6)
+	replace census_region=1 if (residency_state==18)
+	replace census_region=1 if (residency_state==20)
+	replace census_region=1 if (residency_state==28)
+	replace census_region=1 if (residency_state==29)
+	replace census_region=1 if (residency_state==31)
+	replace census_region=1 if (residency_state==37)
+	replace census_region=1 if (residency_state==38)
+	replace census_region=1 if (residency_state==44)
+	***census tract 2
+	replace census_region=2 if (residency_state==12)
+	replace census_region=2 if (residency_state==13)
+	replace census_region=2 if (residency_state==14)
+	replace census_region=2 if (residency_state==15)
+	replace census_region=2 if (residency_state==21)
+	replace census_region=2 if (residency_state==22)
+	replace census_region=2 if (residency_state==24)
+	replace census_region=2 if (residency_state==26)
+	replace census_region=2 if (residency_state==33)
+	replace census_region=2 if (residency_state==34)
+	replace census_region=2 if (residency_state==40)
+	replace census_region=2 if (residency_state==48)	
+	***census tract 3
+	replace census_region=3 if (residency_state==0)
+	replace census_region=3 if (residency_state==3)
+	replace census_region=3 if (residency_state==7)
+	replace census_region=3 if (residency_state==8)
+	replace census_region=3 if (residency_state==9)
+	replace census_region=3 if (residency_state==16)
+	replace census_region=3 if (residency_state==17)
+	replace census_region=3 if (residency_state==19)
+	replace census_region=3 if (residency_state==23)
+	replace census_region=3 if (residency_state==32)
+	replace census_region=3 if (residency_state==35)
+	replace census_region=3 if (residency_state==39)
+	replace census_region=3 if (residency_state==41)
+	replace census_region=3 if (residency_state==42)
+	replace census_region=3 if (residency_state==45)
+	replace census_region=3 if (residency_state==50)
+	replace census_region=3 if (residency_state==47)
+	***census tract 4
+	replace census_region=4 if (residency_state==1)
+	replace census_region=4 if (residency_state==2)
+	replace census_region=4 if (residency_state==4)
+	replace census_region=4 if (residency_state==5)
+	replace census_region=4 if (residency_state==10)
+	replace census_region=4 if (residency_state==11)
+	replace census_region=4 if (residency_state==25)
+	replace census_region=4 if (residency_state==27)
+	replace census_region=4 if (residency_state==30)		
+	replace census_region=4 if (residency_state==36)
+	replace census_region=4 if (residency_state==43)
+	replace census_region=4 if (residency_state==46)
+	replace census_region=4 if (residency_state==49)		
+
+
+label values census_region census_region
+label def census_region 1 "Northeast", modify
+label def census_region 2 "Midwest", modify
+label def census_region 3 "South", modify
+label def census_region 4 "West", modify
+tab residency_state census_region
+tab census_region, miss
+
+***save new version w/defined variables
+save "LARC project data_newvars.dta", replace
+//run "prog updates" do file to add residency program size data 
+
+*merge w/udpated program and residency size data
+merge 1:m record_id using "programdata.dta", force
+drop _merge
+drop program_*
+drop str_program*
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Family Planning Counseling Confidence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+*convert comfort w/risks and benefits to binary: *"Please rate how much you agree with the following statements: I am confident that I can counsel my patients on the RISKS and BENEFITS of the following contraceptive methods:"
+generate rb_coc=0
+	replace rb_coc=1 if cocpill>3 
+	replace rb_coc=. if cocpill==.
+tab2 cocpill rb_coc,miss
+
+generate rb_pop=0
+	replace rb_pop=1 if progpill>3 
+	replace rb_pop=. if progpill==.
+tab2 progpill rb_pop,miss
+
+generate rb_depo=0
+	replace rb_depo=1 if depo>3 
+	replace rb_depo=. if depo==.
+tab depo rb_depo,miss
+
+generate rb_nex=0
+	replace rb_nex=1 if nexplanon>3 
+	replace rb_nex=. if nexplanon==.
+tab2 nexplanon rb_nex,miss
+
+generate rb_mirena=0
+	replace rb_mirena=1 if hormonal_iud>3 
+	replace rb_mirena=. if hormonal_iud==.
+tab2 hormonal_iud rb_mirena,miss
+
+generate rb_copperiud=0
+	replace rb_copperiud=1 if copper_iud>3 
+	replace rb_copperiud=. if copper_iud==.
+tab2 copper_iud rb_copperiud,miss
+
+generate rb_iud=.
+	replace rb_iud=1 if rb_mirena+rb_copperiud==2
+	replace rb_iud=0 if rb_mirena+rb_copperiud==0 | rb_mirena+rb_copperiud==1
+tab rb_iud,miss
+
+*convert comfort w/SIDE EFFECTS to binary: *"Please rate how much you agree with the following statements: I am confident that I can counsel my patients on the SIDE EFFECTS of the following contraceptive methods:"
+generate se_coc=0
+	replace se_coc=1 if ocp>3 
+	replace se_coc=. if ocp==.
+tab2 ocp se_coc,miss
+
+generate se_pop=0
+	replace se_pop=1 if pop>3 
+	replace se_pop=. if pop==.
+tab2 pop se_pop,miss
+
+generate se_depo=0
+	replace se_depo=1 if depoprovera>3 
+	replace se_depo=. if depoprovera==.
+tab se_depo depoprovera,miss
+
+generate se_nex=0
+	replace se_nex=1 if implant>3 
+	replace se_nex=. if implant==.
+tab2 implant se_nex,miss
+
+generate se_mirena=0
+	replace se_mirena=1 if iudh>3 
+	replace se_mirena=. if iudh==.
+tab2 iudh se_mirena,miss
+
+generate se_copperiud=0
+	replace se_copperiud=1 if iudc>3 
+	replace se_copperiud=. if iudc==.
+tab2 iudc se_copperiud,miss
+
+generate se_iud=.
+	replace se_iud=1 if se_mirena+se_copperiud==2
+	replace se_iud=0 if se_mirena+se_copperiud==0 | se_mirena+se_copperiud==1
+tab2 se_iud se_mirena, miss
+
+*describe
+generate desc_coc=0
+	replace desc_coc=1 if describeocp>3 
+	replace desc_coc=. if describeocp==.
+tab2 desc_coc describeocp,miss
+
+generate desc_pop=0
+	replace desc_pop=1 if describeprogestin>3 
+	replace desc_pop=. if describeprogestin==.
+tab2 desc_pop describeprogestin,miss
+
+generate desc_depo=0
+	replace desc_depo=1 if describedepo>3 
+	replace desc_depo=. if describedepo==.
+tab desc_depo describedepo,miss
+
+generate desc_nex=0
+	replace desc_nex=1 if describenex>3 
+	replace desc_nex=. if describenex==.
+tab2 describenex desc_nex,miss
+
+generate desc_mirena=0
+	replace desc_mirena=1 if describehiud>3 
+	replace desc_mirena=. if describehiud==.
+tab2 desc_mirena describehiud,miss
+
+generate desc_copperiud=0
+	replace desc_copperiud=1 if describeciud>3 
+	replace desc_copperiud=. if describeciud==.
+tab2 desc_copperiud describeciud,miss
+
+generate desc_iud=.
+	replace desc_iud=1 if desc_mirena+desc_copperiud==2
+	replace desc_iud=0 if desc_mirena+desc_copperiud==0 | desc_mirena+desc_copperiud==1
+tab desc_iud, miss
+
+*combined risks/benefits/side effects
+generate counsel_coc=0
+	replace counsel_coc=1 if rb_coc==1 & se_coc==1 & desc_coc==1
+	replace counsel_coc=. if rb_coc==. | se_coc==. | desc_coc==.
+tab2 rb_coc se_coc,miss
+tab counsel_coc, miss
+
+generate counsel_pop=0
+	replace counsel_pop=1 if rb_pop==1 & se_pop==1 & desc_pop==1
+	replace counsel_pop=. if rb_pop==. | se_pop==. | desc_pop==.
+tab2 rb_pop se_pop,miss
+tab counsel_pop, miss
+
+generate counsel_depo=0
+	replace counsel_depo=1 if rb_depo==1 & se_depo==1 & desc_depo==1
+	replace counsel_depo=. if rb_depo==. | se_depo==. | desc_depo==.
+tab2 rb_depo se_depo,miss
+tab counsel_depo, miss
+
+generate counsel_nex=0
+	replace counsel_nex=1 if rb_nex==1 & se_nex==1  & desc_nex==1
+	replace counsel_nex=. if rb_nex==. | se_nex==. | desc_nex==.
+tab2 rb_nex se_nex,miss
+tab counsel_nex, miss
+
+generate counsel_mirena=0
+	replace counsel_mirena=1 if rb_mirena==1 & se_mirena==1 & desc_mirena==1
+	replace counsel_mirena=. if rb_mirena==. | se_mirena==. | desc_mirena==.
+tab2 rb_mirena se_mirena,miss
+tab counsel_mirena, miss
+
+generate counsel_copperiud=0
+	replace counsel_copperiud=1 if rb_copperiud==1 & se_copperiud==1 & desc_copperiud==1
+	replace counsel_copperiud=. if rb_copperiud==. | se_copperiud==. | desc_copperiud==.
+tab2 rb_copperiud se_copperiud,miss
+tab counsel_copperiud, miss
+
+generate counsel_iud=0
+	replace counsel_iud=1 if counsel_copperiud==1 & counsel_mirena==1 
+	replace counsel_iud=. if counsel_copperiud==. | counsel_mirena==. 
+tab2 rb_iud se_iud, miss
+tab counsel_iud, miss 
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Comfort with LARC Insertion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+***Nexplanon*****
+
+***resident comfort with nexplanon insertion
+labellist insertnex_res
+gen comfort_res_nexplanon_binary=0
+	replace comfort_res_nexplanon_binary=1 if insertnex_res>3
+	replace comfort_res_nexplanon_binary=. if insertnex_res==.
+
+tab comfort_res_nexplanon_binary, miss
+tab insertnex_res,miss
+
+*med student comfort with nexplanon insertion
+gen comfort_ms_nexplanon_binary=0
+	replace comfort_ms_nexplanon_binary=1 if insertnex_ms>3
+	replace comfort_ms_nexplanon_binary=. if insertnex_ms==.
+
+tab2 comfort_ms_nexplanon_binary insertnex_ms, miss
+
+*compare comfort from ms->res
+tab comfort_ms_nexplanon_binary comfort_res_nexplanon_binary,miss
+
+*compare comfort in residency by career plan
+tab comfort_res_nexplanon_binary counseling, miss
+tab comfort_res_nexplanon_binary career_collapsed, miss
+
+***~~~~IUD~~~****
+
+*resident comfort with IUD insertion
+gen comfort_res_iud_binary=0
+	replace comfort_res_iud_binary=1 if insertiud_res>3
+	replace comfort_res_iud_binary=. if insertiud_res==.
+
+tab comfort_res_iud_binary, miss
+tab insertiud_res,miss
+
+*med student comfort with IUD insertion
+gen comfort_ms_iud_binary=0
+	replace comfort_ms_iud_binary=1 if insertiud_ms>3
+	replace comfort_ms_iud_binary=. if insertiud_ms==.
+
+tab comfort_ms_iud_binary, miss
+tab insertiud_ms,miss
+
+*compare comfort from ms->res
+tab comfort_ms_iud_binary comfort_res_iud_binary,miss
+
+*Compare comfort in residency by career plan
+tab comfort_res_iud_binary counseling, miss
+tab comfort_res_iud_binary career_collapsed, miss
+
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Resident Preferences
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+**"I think that pediatric residents should be educated on"
+
+gen should_counsel_nex=0
+	replace should_counsel_nex=1 if nexplanon_counsel>2
+	replace should_counsel_nex=. if nexplanon_counsel==.
+tab should_counsel_nex,miss
+tab nexplanon_counsel,miss	
+	
+gen should_insert_nex=0
+	replace should_insert_nex=1 if nexplanon_insert>2
+	replace should_insert_nex=. if nexplanon_insert==.
+tab should_insert_nex,missing
+tab nexplanon_insert,miss
+	
+gen should_counsel_iud=0
+	replace should_counsel_iud=1 if iud_counsel>2
+	replace should_counsel_iud=. if iud_counsel==.
+tab should_counsel_iud,missing
+tab iud_counsel,missing	
+	
+gen should_insert_iud=0
+	replace should_insert_iud=1 if iud_insert>2
+	replace should_insert_iud=. if iud_insert==.
+tab should_insert_iud,missing
+tab iud_insert,miss
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Satisfaction with LARC
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+***dichotomize satisfaction med school
+labellist larctrain_satis_ms
+gen satisfiedms=0
+	replace satisfiedms=1 if larctrain_satis_ms>3
+	replace satisfiedms=. if larctrain_satis_ms==.
+
+tab larctrain_satis_ms, miss
+tab satisfiedms,miss
+
+***dichotomize satisfaction residency
+labellist satisfied_res
+gen satisfiedres=0
+	replace satisfiedres=1 if satisfied_res>3
+	replace satisfiedres=. if satisfied_res==.
+
+tab satisfied_res larctrain_satis_ms
+tab satisfiedres,miss
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Table 1: Comfort with LARC inseriton
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+tab career_collapsed
+tab2 career_collapsed comfort_res_nexplanon_binary, row chi
+tab2 career_collapsed comfort_res_iud_binary, row chi
+
+tab racecoll
+tab2 racecoll comfort_res_nexplanon_binary, row chi
+tab2 racecoll comfort_res_iud_binary, row chi
+
+tab gender, miss //>5% missing
+tab2 gender comfort_res_nexplanon_binary, miss row chi
+tab2 gender comfort_res_iud_binary, miss row chi
+
+tab traininglevel
+tab2 traininglevel comfort_res_nexplanon_binary, row chi
+tab2 traininglevel comfort_res_iud_binary, row chi
+
+tab counsel_nex
+tab2 counsel_nex comfort_res_nexplanon_binary, row chi
+
+tab comfort_ms_nexplanon_binary
+tab2 comfort_ms_nexplanon_binary comfort_res_nexplanon_binary, row chi
+
+tab counsel_iud
+tab2 counsel_iud comfort_res_iud_binary, row chi
+
+tab comfort_ms_iud_binary
+tab2 comfort_ms_iud_binary comfort_res_iud_binary, row chi
+
+***Comfort w counseling vs insertion 
+tab2 counsel_iud comfort_res_iud_binary, row all
+tab2 counsel_nex comfort_res_nexplanon_binary, row all
+
+**Significance testing missing variables
+gen miss_gen=0
+replace miss_gen=1 if gender==.
+				
+tab2 miss_gen comfort_res_iud_binary, chi
+tab2 miss_gen comfort_res_nexplanon_binary, chi
+
+gen miss_reg=0
+replace miss_reg=1 if census_region==.
+				
+tab2 miss_reg comfort_res_iud_binary, chi
+tab2 miss_reg comfort_res_nexplanon_binary, chi
+
+gen miss_adolmed=0
+replace miss_adolmed=1 if adolmedcomplete==.
+				
+tab2 miss_adolmed comfort_res_iud_binary, chi
+tab2 miss_adolmed comfort_res_nexplanon_binary, chi
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Table 3: Interest in LARC
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/	
+
+***NEX 
+tab should_insert_nex, miss
+
+tab2 career_collapsed should_insert_nex, chi row
+	tab2 career_collapsed should_insert_nex, miss column
+
+tab2 racecoll should_insert_nex, chi row
+	tab2 racecoll should_insert_nex, miss column
+	
+tab2 gender should_insert_nex, chi row
+	tab2 gender should_insert_nex, miss column chi //more than 10% missing
+
+tab2 census_region should_insert_nex, chi row
+	tab2 census_region should_insert_nex, column miss
+
+tab2 traininglevel should_insert_nex, chi row 
+	tab2 traininglevel should_insert_nex, miss column
+
+tab2 adolmedcomplete should_insert_nex, chi row 
+	tab2 adolmedcomplete should_insert_nex, miss column
+	
+tab2 counsel_nex should_insert_nex, chi row 
+	tab2 counsel_nex should_insert_nex, miss column
+
+tab2 comfort_ms_nexplanon_binary should_insert_nex, chi row 
+	tab2 comfort_ms_nexplanon_binary should_insert_nex, miss column
+
+tab2 comfort_res_nexplanon_binary should_insert_nex, chi row
+	tab2 comfort_res_nexplanon_binary should_insert_nex, miss column
+
+	
+***IUD 
+
+tab2 career_collapsed should_insert_iud, chi row
+	tab2 career_collapsed should_insert_iud, miss column
+
+tab2 racecoll should_insert_iud, chi row
+	tab2 racecoll should_insert_iud, miss column
+	
+tab2 gender should_insert_iud, chi row
+	tab2 gender should_insert_iud, miss row chi //more than 10% missing
+
+tab2 census_region should_insert_iud, chi row
+	tab2 census_region should_insert_iud, column miss
+
+tab2 traininglevel should_insert_iud, chi row 
+	tab2 traininglevel should_insert_iud, miss column
+
+tab2 adolmedcomplete should_insert_iud, chi row 
+	tab2 adolmedcomplete should_insert_iud, miss column
+	
+tab2 counsel_iud should_insert_iud, chi row 
+	tab2 counsel_iud should_insert_iud, miss column
+
+tab2 comfort_ms_iud_binary should_insert_iud, chi row 
+	tab2 comfort_ms_iud_binary should_insert_iud, miss column
+
+tab2 comfort_res_iud_binary should_insert_iud, chi row
+	tab2 comfort_res_iud_binary should_insert_iud, miss column
+
+***Significance testing missing variables
+tab2 miss_gen should_insert_iud, chi
+tab2 miss_gen should_insert_nex, chi
+				
+tab2 miss_reg should_insert_iud, chi
+tab2 miss_reg should_insert_nex, chi
+
+tab2 miss_adolmed should_insert_iud, chi
+tab2 miss_adolmed should_insert_nex, chi
+		
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Regression Analysis 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+ log using updatetables.log, text replace
+
+***odds ratios original:
+logistic comfort_res_nexplanon_binary i.career_collapsed i.traininglevel comfort_ms_nexplanon_binary i.census_region
+logistic comfort_res_iud_binary i.career_collapsed i.traininglevel comfort_ms_iud_binary i.census_region
+
+logistic should_insert_nex i.career_collapsed  i.traininglevel  comfort_ms_nexplanon_binary i.census_region
+logistic should_insert_iud i.career_collapsed  i.traininglevel  comfort_ms_iud_binary i.census_region
+
+***pairwise correlation
+pwcorr comfort_ms_nexplanon_binary career_collapsed traininglevel census_region, sig bonf
+pwcorr comfort_ms_iud_binary career_collapsed traininglevel census_region, sig bonf
+pwcorr comfort_res_nexplanon_binary comfort_ms_nexplanon_binary, sig obs
+pwcorr comfort_res_iud_binary comfort_ms_iud_binary, sig obs
+
+***odds ratios include only p<0.5:
+logistic comfort_res_nexplanon_binary comfort_ms_nexplanon_binary ib1.census_region
+logistic comfort_res_iud_binary comfort_ms_iud_binary
+logistic satisfiedres comfort_res_nexplanon_binary i.career_binary age i.traininglevel adolmedcomplete comfort_ms_nexplanon_binary ib1.census_region
+
+***stepwise odds ratios
+stepwise, pr(.2): logistic comfort_res_nexplanon_binary (i.career_collapsed) (i.traininglevel) comfort_ms_nexplanon_binary ib1.census_region age adolmedcomplete counseling gender
+stepwise, pr(.2): logistic comfort_res_iud_binary (i.career_collapsed) (i.traininglevel) comfort_ms_iud_binary ib1.census_region age adolmedcomplete counseling gender
+stepwise, pr(.2): logistic satisfiedres comfort_res_nexplanon_binary (i.career_collapsed)  i.traininglevel  comfort_ms_nexplanon_binary ib1.census_region age adolmedcomplete counseling gender
+
+***analyses without med student comfort
+logistic comfort_res_nexplanon_binary i.career_collapsed i.traininglevel i.census_region
+logistic comfort_res_iud_binary i.career_collapsed i.traininglevel i.census_region
+
+***odds ratios ordinal - comfort with insertion:
+ologit insertnex_res i.career_collapsed i.traininglevel comfort_ms_nexplanon_binary i.census_region, or
+ologit insertiud_res i.career_collapsed i.traininglevel insertiud_ms i.census_region, or
+
+***odds ratios ordinal - beliefs regarding LARC:
+ologit nexplanon_insert i.career_collapsed i.traininglevel comfort_ms_nexplanon_binary i.census_region, or
+ologit iud_insert i.career_collapsed i.traininglevel insertiud_ms i.census_region, or
+
+**fixed effects - residency state
+xtset residency_state
+*comfort with insertion
+xtologit comfort_res_nexplanon_binary i.career_collapsed i.traininglevel comfort_ms_nexplanon_binary, or //removed census_region
+xtologit comfort_res_iud_binary i.career_collapsed i.traininglevel comfort_ms_iud_binary, or //removed census_region
+
+**fixed effects - residency program
+encode prog_coll, gen(nprogram)
+sum nprogram prog_coll
+xtset nprogram
+xtologit comfort_res_nexplanon_binary i.career_collapsed i.traininglevel comfort_ms_nexplanon_binary, or //removed census_region
+xtologit comfort_res_iud_binary i.career_collapsed i.traininglevel comfort_ms_iud_binary, or //removed census_region
+log close
+				
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Free Text 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+asdoc levelsof larc_training_describe
+levelsof comment_ms
+levelsof formaltraining_res
+levelsof training_method_other
